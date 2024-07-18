@@ -9,6 +9,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.51.9",
     "axios": "^1.7.2",
     "body-parser": "^1.20.2",
     "class-variance-authority": "^0.7.0",
