@@ -10,5 +10,6 @@ export const useGetHistory = () => {
   return useQuery({
     queryKey: ["useGetHistory"],
     queryFn: getHistory,
+    enabled: false,
   });
 };
