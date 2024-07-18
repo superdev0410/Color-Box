@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 
 import { COLORS } from "./lib/constants";
+import { Button } from "./components/ui/button";
+import { usePostHistory, useGetHistory } from "./hooks";
 
 const App = () => {
   const [boxes, setboxes] = useState<number[]>(new Array(7).fill(0));
   const [isReversing, setReversing] = useState(false);
+  const [isReplaying, setReplaying] = useState(false);
   const reverseRef = useRef<NodeJS.Timeout | null>(null);
+  const replayRef = useRef<NodeJS.Timeout | null>(null);
   const eventsRef = useRef<number[]>([]);
+  const historyRef = useRef<number[]>([]);
+  const history = useGetHistory();
+  const saveHistory = usePostHistory();
 
   const toggleColor = useCallback(
     (index: number) =>
@@ -17,12 +24,13 @@ const App = () => {
   );
   const onClickBox = useCallback(
     (index: number) => {
-      if (!isReversing) {
+      if (!isReplaying && !isReversing) {
         toggleColor(index);
         eventsRef.current.push(index);
+        saveHistory.mutate(index);
       }
     },
-    [isReversing, toggleColor]
+    [isReversing, isReplaying, toggleColor]
   );
   const onClickOutside = useCallback(
     (e: Event) => {
@@ -33,21 +41,38 @@ const App = () => {
     },
     [setReversing]
   );
+  const onClickReplay = useCallback(() => {
+    history.refetch().then((result) => {
+      setReplaying(true);
+      setboxes(new Array(7).fill(0));
+      historyRef.current = result.data!;
+      replayRef.current = setInterval(() => {
+        const first = historyRef.current.shift();
+        if (first !== undefined) {
+          toggleColor(first);
+        } else {
+          setReplaying(false);
+          clearInterval(replayRef.current!);
+        }
+      }, 300);
+    });
+  }, [history, setReplaying, setboxes]);
 
   useEffect(() => {
-    if (boxes.every((box) => box === 1)) {
+    if (!isReplaying && boxes.every((box) => box === 1)) {
       setReversing(true);
       reverseRef.current = setInterval(() => {
         const last = eventsRef.current.pop();
         if (last !== undefined) {
           toggleColor(last);
+          saveHistory.mutate(last);
         } else {
           setReversing(false);
           clearInterval(reverseRef.current!);
         }
       }, 500);
     }
-  }, [boxes, toggleColor, setReversing]);
+  }, [boxes, isReplaying, toggleColor, setReversing]);
   useEffect(() => {
     document.addEventListener("click", onClickOutside);
     return () => {
@@ -66,6 +91,9 @@ const App = () => {
           onClick={() => onClickBox(index)}
         />
       ))}
+      <Button onClick={onClickReplay} disabled={isReplaying}>
+        Replay
+      </Button>
     </div>
   );
 };
